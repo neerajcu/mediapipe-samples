@@ -43,3 +43,8 @@ models, place them into the app's *assets* directory.
 
 Downloading, extraction, and placing the models into the *assets* folder is
 managed automatically by the **download_models.gradle** file.
+## References
+
+- [Expanation.md](./Expanation.md) – Overview and walkthrough
+- [Mediapipe.md](./Mediapipe.md) – MediaPipe Task API details
+- [tensorflowlite.md](./tensorflowlite.md) – TensorFlow Lite models and deployment
