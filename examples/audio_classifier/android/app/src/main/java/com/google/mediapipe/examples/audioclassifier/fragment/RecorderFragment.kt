@@ -77,22 +77,18 @@ class RecorderFragment : Fragment(), AudioClassifierHelper.ClassifierListener {
             addItemDecoration(decoration)
         }
 
-        viewModel.audioPermission.observe(viewLifecycleOwner) { isGranted ->
-            if (isGranted) {
-                backgroundExecutor.execute {
-                    audioClassifierHelper =
-                        AudioClassifierHelper(
-                            context = requireContext(),
-                            classificationThreshold = viewModel.currentThreshold,
-                            overlap = viewModel.currentOverlapPosition,
-                            numOfResults = viewModel.currentMaxResults,
-                            runningMode = RunningMode.AUDIO_STREAM,
-                            listener = this
-                        )
-                    activity?.runOnUiThread {
-                        initBottomSheetControls()
-                    }
-                }
+        backgroundExecutor.execute {
+            audioClassifierHelper =
+                AudioClassifierHelper(
+                    context = requireContext(),
+                    classificationThreshold = viewModel.currentThreshold,
+                    overlap = viewModel.currentOverlapPosition,
+                    numOfResults = viewModel.currentMaxResults,
+                    runningMode = RunningMode.AUDIO_STREAM,
+                    listener = this
+                )
+            activity?.runOnUiThread {
+                initBottomSheetControls()
             }
         }
     }
@@ -108,12 +104,9 @@ class RecorderFragment : Fragment(), AudioClassifierHelper.ClassifierListener {
             )
                 .navigate(R.id.action_audio_to_permissions)
         }
-
         backgroundExecutor.execute {
-            if (::audioClassifierHelper.isInitialized) {
-                if (audioClassifierHelper.isClosed()) {
-                    audioClassifierHelper.initClassifier()
-                }
+            if (audioClassifierHelper.isClosed()) {
+                audioClassifierHelper.initClassifier()
             }
         }
     }
@@ -121,15 +114,15 @@ class RecorderFragment : Fragment(), AudioClassifierHelper.ClassifierListener {
     override fun onPause() {
         super.onPause()
 
-        if(::audioClassifierHelper.isInitialized) {
-            // save audio classifier settings
-            viewModel.apply {
-                setThreshold(audioClassifierHelper.classificationThreshold)
-                setMaxResults(audioClassifierHelper.numOfResults)
-                setOverlap(audioClassifierHelper.overlap)
-            }
+        // save audio classifier settings
+        viewModel.apply {
+            setThreshold(audioClassifierHelper.classificationThreshold)
+            setMaxResults(audioClassifierHelper.numOfResults)
+            setOverlap(audioClassifierHelper.overlap)
+        }
 
-            backgroundExecutor.execute {
+        backgroundExecutor.execute {
+            if (::audioClassifierHelper.isInitialized) {
                 audioClassifierHelper.stopAudioClassification()
             }
         }
@@ -138,12 +131,10 @@ class RecorderFragment : Fragment(), AudioClassifierHelper.ClassifierListener {
         super.onDestroyView()
         _fragmentBinding = null
         // Shut down our background executor
-        if (::backgroundExecutor.isInitialized) {
-            backgroundExecutor.shutdown()
-            backgroundExecutor.awaitTermination(
-                Long.MAX_VALUE, TimeUnit.NANOSECONDS
-            )
-        }
+        backgroundExecutor.shutdown()
+        backgroundExecutor.awaitTermination(
+            Long.MAX_VALUE, TimeUnit.NANOSECONDS
+        )
     }
 
     private fun initBottomSheetControls() {
@@ -204,35 +195,23 @@ class RecorderFragment : Fragment(), AudioClassifierHelper.ClassifierListener {
             false
         )
 
-        setThreshold(viewModel.currentThreshold)
-        setMaxResults(viewModel.currentMaxResults)
-        setOverlap(viewModel.currentOverlapPosition)
+        fragmentRecorderBinding.bottomSheetLayout.thresholdValue.text =
+            viewModel.currentThreshold.toString()
+        fragmentRecorderBinding.bottomSheetLayout.resultsValue.text =
+            viewModel.currentMaxResults.toString()
     }
 
     // Update the values displayed in the bottom sheet. Reset classifier.
     private fun updateControlsUi() {
-        setMaxResults(audioClassifierHelper.numOfResults)
-        setThreshold(audioClassifierHelper.classificationThreshold)
-        setOverlap(audioClassifierHelper.overlap)
+        fragmentRecorderBinding.bottomSheetLayout.resultsValue.text =
+            audioClassifierHelper.numOfResults.toString()
+        fragmentRecorderBinding.bottomSheetLayout.thresholdValue.text =
+            String.format("%.2f", audioClassifierHelper.classificationThreshold)
 
         backgroundExecutor.execute {
             audioClassifierHelper.stopAudioClassification()
             audioClassifierHelper.initClassifier()
         }
-    }
-
-    private fun setThreshold(threshold: Float) {
-        fragmentRecorderBinding.bottomSheetLayout.thresholdValue.text =
-            String.format("%.2f", threshold)
-    }
-
-    private fun setMaxResults(maxResults: Int) {
-        fragmentRecorderBinding.bottomSheetLayout.resultsValue.text =
-            maxResults.toString()
-    }
-
-    private fun setOverlap(position: Int) {
-        fragmentRecorderBinding.bottomSheetLayout.spinnerOverlap.setSelection(position, false)
     }
 
     override fun onError(error: String) {
